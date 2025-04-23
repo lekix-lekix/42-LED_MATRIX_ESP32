@@ -1,0 +1,2 @@
+source /home/lekix/Desktop/DEV/42/42-LED_MATRIX_ESP32/build/bootloader/gdbinit/symbols
+source /home/lekix/Desktop/DEV/42/42-LED_MATRIX_ESP32/build/bootloader/gdbinit/connect

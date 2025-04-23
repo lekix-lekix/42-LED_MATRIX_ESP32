@@ -84,9 +84,9 @@ int launch_conway_simulation(t_rmt *module)
             {
                 if (conway_tab[i][j])
                 {
-                    led_data[led_i * 3 + 0] = 0xFF;
-                    led_data[led_i * 3 + 1] = 0x00;
-                    led_data[led_i * 3 + 2] = 0x00;
+                    led_data[led_i * 3 + 0] = 0xFF; // g
+                    led_data[led_i * 3 + 1] = 0x00; // b
+                    led_data[led_i * 3 + 2] = 0x00; // r
                 }
                 else
                 {
