@@ -3,9 +3,11 @@
 #include "conway.h"
 #include "esp_timer.h"
 #include "esp_log.h"
+#include "driver/uart.h"
 
 #define SENSOR_TRIG 5
 #define SENSOR_READ 18
+#define BUFF_SIZE 1024
 
 void setup_rmt_module(int gpio, t_rmt *rmt)
 {
@@ -56,33 +58,58 @@ void setup_sensor()
     gpio_config(&pin_18);
 }
 
-float read_distance_cm()
+int32_t read_distance_ms()
 {
     int64_t start_time = 0;
     int64_t end_time = 0;
+    int64_t echo_start = 0;
 
     // Envoi du trigger (10 µs HIGH)
     gpio_set_level(SENSOR_TRIG, 1);
     esp_rom_delay_us(10);
     gpio_set_level(SENSOR_TRIG, 0);
 
-    // Attente que ECHO passe à 1
-    while (gpio_get_level(SENSOR_READ) == 0) {
-        start_time = esp_timer_get_time();
+    start_time = esp_timer_get_time();
+    while (gpio_get_level(SENSOR_READ) == 0) 
+    {
+        if ((esp_timer_get_time() - start_time) > 10000) // 30000 == 5us
+            return (-1);
     }
-
-    // Attente que ECHO retombe à 0
-    while (gpio_get_level(SENSOR_READ) == 1) {
-        end_time = esp_timer_get_time();
+    echo_start = esp_timer_get_time();
+    while (gpio_get_level(SENSOR_READ) == 1) 
+    {
+        if ((esp_timer_get_time() - echo_start) > 10000) // 30000 == 5us
+            return (-1);
     }
+    end_time = esp_timer_get_time();
 
-    // Durée en microsecondes
-    int64_t duration = end_time - start_time;
-
+    int32_t distance = (end_time - start_time) * 0.0343;
+    return (distance);
     // Conversion en cm (vitesse du son = 343 m/s = 0.0343 cm/µs)
-    float distance = (duration * 0.0343) / 2;
+    // float distance = (duration * 0.0343) / 2;
+    // return distance;
+}
 
-    return distance;
+void uart_init()
+{
+    uart_config_t uart_config;
+
+    uart_config.baud_rate = 115200;
+    uart_config.data_bits = UART_DATA_8_BITS;
+    uart_config.parity = UART_PARITY_DISABLE;
+    uart_config.stop_bits = UART_STOP_BITS_1;
+    uart_config.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
+
+    uart_param_config(UART_NUM_0, &uart_config);
+    uart_driver_install(UART_NUM_0, BUFF_SIZE * 2, 0, 0, NULL, 0);
+}
+
+int ft_strlen(char *str)
+{
+    int i = 0;
+    while (str[i])
+        i++;
+    return (i);
 }
 
 void app_main()
@@ -97,12 +124,25 @@ void app_main()
 
     // launch_conway_simulation(&module);
     
+    uart_init();
     setup_sensor();
 
+    int distance_ms;
+    int64_t start_time;
+    int64_t end_time;
+    char    str[10];
+
     while (1) {
-        float distance = read_distance_cm();
-        // printf("Distance mesurée : %.2f cm\n", distance);
-        printf("%f\n", distance);
-        vTaskDelay(1);
+        start_time = esp_timer_get_time();
+        distance_ms = read_distance_ms();
+        // printf("distance measured esp = %lld\n", distance_ms);
+        end_time = esp_timer_get_time();
+        // printf("tmps ecoule : %lld\n", end_time - start_time);
+        itoa(distance_ms, str, 10);
+        // printf("final str = %s\n", str);
+        uart_write_bytes(UART_NUM_0, str, 10);
+        for (int i = 0; i < 10; i++)
+            str[i] = '\0';
+        vTaskDelay(pdMS_TO_TICKS(29));
     }
-}
+}   

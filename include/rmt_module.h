@@ -10,6 +10,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/rmt_tx.h"
+#include "driver/uart.h"
 #include <stdio.h>
 
 typedef struct s_rmt
