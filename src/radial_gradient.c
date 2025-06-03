@@ -1,6 +1,8 @@
 #include "../include/include.h"
 #include "../include/rmt_module.h"
 #include "esp_timer.h"
+#include "esp_pthread.h"
+#include "pthread.h"
 
 // int handle_keys(int key);
 
@@ -374,7 +376,7 @@ long int	get_time_elapsed(t_timeval *starting_time)
 	return (time_elapsed);
 }
 
-int start_radial(t_rmt *module)
+int start_radial(t_rmt *module, sensor_data_t *sensor_data)
 {
     // float            target_frame_time_ms = 33.333f; // 1000 / 60 (fps)
     // static float     distance_tab[10];
@@ -438,53 +440,32 @@ int start_radial(t_rmt *module)
     return (0); 
 }
 
-// typedef struct s_params
-// {
-//     t_mlx   *window;
-// }   t_params;
+typedef struct sensor_data_s
+{
+    pthread_mutex_t *avg_lock;
+    float           *average;
+}   sensor_data_t;
+
+void get_avg_routine(sensor_data_t *sensor_data)
+{
+    
+}
 
 int radial_loop(t_rmt *module)
 {
-    // window->uart_fd = open(SERIAL_PORT, O_RDONLY | O_NOCTTY);
-    // if (window->uart_fd == -1) 
-    // {
-    //     perror("Erreur d'ouverture du port série");
-    //     return 1;
-    // }
-    // // Configurer le port série
-    // if (configure_serial_port(window->uart_fd) < 0) 
-    // {
-    //     close(window->uart_fd);
-    //     return 1;
-    // }
-    // mlx_hook(window->win_ptr, 2, 1L << 0, handle_keys, &pixellization);
-    // mlx_loop_hook(window->mlx_ptr, &start_radial, window);
-    // mlx_loop(window->mlx_ptr);
+    pthread_t       sensor_thread;
+    pthread_mutex_t avg_mutex;
+    sensor_data_t   sensor_data;
+    float           avg_distance = 0;
+
+    if (pthread_mutex_init(&avg_mutex, NULL) == -1)
+        return (-1);
+    sensor_data.average = &avg_distance;
+    sensor_data.avg_lock = &avg_mutex;
+    if (pthread_create(&sensor_thread, NULL, (void *)get_avg_routine, &sensor_data) == -1)
     while (1)
     {
-        start_radial(module);
+        start_radial(module, &sensor_data);
     }
-    // uint8_t led_data[300 * 3];
-    // int color = 0xFF0000;
-    // while (1)
-    // {
-    //     for (int i = 0; i < 300; i++)
-    //     {
-    //         encode_color_rmt(led_data, i, color);
-    //     }
-    //     ESP_ERROR_CHECK(rmt_transmit(module->tx_channel, module->encoder, led_data, sizeof(led_data), &module->tx_config));
-    //     ESP_ERROR_CHECK(rmt_tx_wait_all_done(module->tx_channel, -1));
-    //     color = color >> 1;
-    //     if (color == 0)
-    //         color = 0xFF0000;
-    //     vTaskDelay(1);
-    // }
-    // for (int i = 0; i < G_HEIGHT; i++)
-    // {
-    //     for (int j = 0; j < G_WIDTH; j++)
-    //     {
-            
-    //     }
-    // }
     return (0);
 }

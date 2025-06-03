@@ -153,13 +153,14 @@ int ft_strlen(char *str)
 
 void app_main()
 {
-        // Connecter la bonne pin au module RMT
+    // Connecter la bonne pin au module RMT
     REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG, RMT_SIG_OUT0_IDX);
     // Activer la pin en output
     REG_WRITE(GPIO_ENABLE_REG, 1 << 18);
 
     t_rmt module;
     setup_rmt_module(18, &module);
+    setup_sensor();
     radial_loop(&module);
     // uint8_t led_data[300 * 3];
     // int      led_i;
