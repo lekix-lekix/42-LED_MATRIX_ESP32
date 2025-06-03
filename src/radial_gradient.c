@@ -1,5 +1,6 @@
 #include "../include/include.h"
 #include "../include/rmt_module.h"
+#include "esp_timer.h"
 
 // int handle_keys(int key);
 
@@ -17,7 +18,7 @@ float get_norm_distance(t_cell *cell, t_cell *center, float max_distance)
 float branches = -2.0f;
 float pixellization =  10; // 2.90f; // 1,
 float spiral_speed = 0.01f;
-float anim_speed = 0.001f;
+float anim_speed = 0.01f; // 0.005f
 int   color_mode = 0;
 int   nb_colors = 0;
 int   next_color = 2;
@@ -342,13 +343,43 @@ float norm_value(float value, float min, float max)
     return t;
 }
 
+void encode_color_rmt(uint8_t *led, int index, int color)
+{
+    led[index * 3 + 0] = get_r(color);
+    led[index * 3 + 1] = get_g(color);
+    led[index * 3 + 2] = get_b(color);
+}
+
+void print_matrix(int matrix[15][20])
+{
+    for (int i = 0; i < G_HEIGHT; i++)
+    {
+        for (int j = 0; j < G_WIDTH; j++)
+        {
+            printf("%d | ", matrix[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n\n");
+}
+
+long int	get_time_elapsed(t_timeval *starting_time)
+{
+	t_timeval	current_time;
+	long int	time_elapsed;
+
+	gettimeofday(&current_time, NULL);
+	time_elapsed = ((current_time.tv_sec - starting_time->tv_sec) * 1000)
+		+ ((current_time.tv_usec - starting_time->tv_usec) * 0.001);
+	return (time_elapsed);
+}
+
 int start_radial(t_rmt *module)
 {
     // float            target_frame_time_ms = 33.333f; // 1000 / 60 (fps)
     // static float     distance_tab[10];
     // float            distance;
-    // long int         frame_time;
-    // t_timeval        timer;
+    // uint64_t         start_time;
     // int colors_1[5];
     // int colors_2[5];
     
@@ -368,7 +399,7 @@ int start_radial(t_rmt *module)
     //     active_palette[i] = interpolate_color(colors_1[i], colors_2[i], distance);
     // pixellization = lerp(pixellization, distance, 0.2f);
     // printf("branches = %f\n", pixellization);
-    // gettimeofday(&timer, NULL);
+    // start_time = esp_timer_get_time();
     radial_gradient();
     // frame_time = get_time_elapsed(&timer);
     // if (target_frame_time_ms < frame_time)
@@ -391,24 +422,19 @@ int start_radial(t_rmt *module)
         for (int j = 0; j < G_WIDTH; j++)
         {
             if (i % 2 != 0)
-            {
-                led_data[led_i * 3 + 0] = get_r(leds[i][19 - j]);
-                led_data[led_i * 3 + 1] = get_g(leds[i][19 - j]);
-                led_data[led_i * 3 + 1] = get_b(leds[i][19 - j]);
-            }
+                encode_color_rmt(led_data, led_i, leds[i][19 - j]);
             else
-            {
-                led_data[led_i * 3 + 0] = get_r(leds[i][j]);
-                led_data[led_i * 3 + 1] = get_g(leds[i][j]);
-                led_data[led_i * 3 + 1] = get_b(leds[i][j]);
-            }
+                encode_color_rmt(led_data, led_i, leds[i][j]);
+            led_i++;
         }
         // draw_cell(img, j, i, leds[i][j]);
     }
     // push_img(img, window);
     frame++;
-    ESP_ERROR_CHECK(rmt_transmit(module->tx_channel, module->encoder, led_data, sizeof(led_data), &module->tx_config));
+    // print_matrix(leds);
     ESP_ERROR_CHECK(rmt_tx_wait_all_done(module->tx_channel, -1));
+    ESP_ERROR_CHECK(rmt_transmit(module->tx_channel, module->encoder, led_data, sizeof(led_data), &module->tx_config));
+    // printf("temps ecoule = %lld\n", esp_timer_get_time() - start_time);
     return (0); 
 }
 
@@ -438,5 +464,27 @@ int radial_loop(t_rmt *module)
     {
         start_radial(module);
     }
+    // uint8_t led_data[300 * 3];
+    // int color = 0xFF0000;
+    // while (1)
+    // {
+    //     for (int i = 0; i < 300; i++)
+    //     {
+    //         encode_color_rmt(led_data, i, color);
+    //     }
+    //     ESP_ERROR_CHECK(rmt_transmit(module->tx_channel, module->encoder, led_data, sizeof(led_data), &module->tx_config));
+    //     ESP_ERROR_CHECK(rmt_tx_wait_all_done(module->tx_channel, -1));
+    //     color = color >> 1;
+    //     if (color == 0)
+    //         color = 0xFF0000;
+    //     vTaskDelay(1);
+    // }
+    // for (int i = 0; i < G_HEIGHT; i++)
+    // {
+    //     for (int j = 0; j < G_WIDTH; j++)
+    //     {
+            
+    //     }
+    // }
     return (0);
 }

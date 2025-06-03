@@ -3,6 +3,7 @@
   "files.associations": {
     "*.embeddedhtml": "html",
     "cstdint": "c",
-    "gpio_sig_map.h": "c"
+    "gpio_sig_map.h": "c",
+    "include.h": "c"
   }
 }

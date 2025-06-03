@@ -1,9 +1,9 @@
 #include "rmt_module.h"
 #include "driver/gpio.h"
 #include "conway.h"
-#include "esp_timer.h"
 #include "esp_log.h"
 #include "driver/uart.h"
+#include "esp_timer.h"
 #include "../include/include.h"
 
 #define SENSOR_TRIG 5
@@ -24,16 +24,19 @@ void setup_rmt_module(int gpio, t_rmt *rmt)
 
     rmt->encoder = NULL;
     rmt->config.bit0.level0 = 1;
-    rmt->config.bit0.duration0 = 14;
     rmt->config.bit0.level1 = 0;
-    rmt->config.bit0.duration1 = 32;
     rmt->config.bit1.level0 = 1;
-    rmt->config.bit1.duration0 = 28;
     rmt->config.bit1.level1 = 0;
+
+    rmt->config.bit0.duration0 = 14;
+    rmt->config.bit0.duration1 = 32;
+    rmt->config.bit1.duration0 = 28;
     rmt->config.bit1.duration1 = 24;
+
     rmt->config.flags.msb_first = true;
 
     rmt->tx_config.loop_count = 0;
+    rmt->tx_config.flags.eot_level = 0;  // ligne basse à la fin
 
     ESP_ERROR_CHECK(rmt_new_bytes_encoder(&rmt->config, &rmt->encoder));
 }
