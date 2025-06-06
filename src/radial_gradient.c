@@ -17,10 +17,28 @@ float get_norm_distance(t_cell *cell, t_cell *center, float max_distance)
     return (distance_squared / square(max_distance));
 }
 
+// float branches = -2.0f;
+// float pixellization =  10; // 2.90f; // 1,
+// float spiral_speed = 0.01f;
+// float anim_speed = 0.01f; // 0.005f
+// int   color_mode = 0;
+// int   nb_colors = 0;
+// int   next_color = 2;
+// int   mode = 0;
+// int   active_palette[5];
+
+// int   transition_start_frame = 0;
+// int   restart_frame = 0;
+// int   animation_restart = 0;
+
+// int   leds[15][20];
+// int   frame = 0;
+// int   cell_state[G_HEIGHT][G_WIDTH] = {0};
+
 float branches = -2.0f;
-float pixellization =  10; // 2.90f; // 1,
+float pixellization = 1; // 2.90f; // 1,
 float spiral_speed = 0.01f;
-float anim_speed = 0.01f; // 0.005f
+float anim_speed = 0.005f; // 0.005f
 int   color_mode = 0;
 int   nb_colors = 0;
 int   next_color = 2;
@@ -292,41 +310,55 @@ void copy_float_tab(float *src, float *dst, int size)
         dst[i] = src[i];
 }
 
-// void get_distance_tab(int uart_fd, float *tab, int size, int fill)
-// {
-//     float sensor_data = 0;
-//     if (fill)
-//     {
-//         for (int i = 0; i < size; i++)
-//         {
-//             sensor_data = read_sensor_data(uart_fd);
-//             if (sensor_data == -1)
-//                 sensor_data = 0;
-//             tab[i] = sensor_data / 1000;
-//         }
-//         return ;
-//     }
-//     sensor_data = read_sensor_data(uart_fd);
-//     // printf("sensor data = %f\n", sensor_data);
-//     if (sensor_data == -1)
-//         sensor_data = 0;
-//     // printf("sensor data = %f\n", sensor_data);
-//     for (int i = 0; i < size - 1; i++)
-//         tab[i] = tab[i + 1];
-//     tab[size - 1] = sensor_data;
-//     // for (int i = 0; i < size - 1; i++)
-//         // printf("tab[%d] = %f\n", i, tab[i]);
-//     printf("=========\n");
-// }
+void add_endline(char *str)
+{
+    int i = 0;
+    while (str[i])
+        i++;
+    str[i] = '\n';
+    str[i + 1] = '\0';
+}
 
-// float get_avg_ftab(float *tab, int size)
-// {
-//     float avg = 0;
+void get_distance_tab(float *tab, int size)
+{
+    float sensor_data = 0;
+    if (tab[0] == -1)
+    {
+        for (int i = 0; i < size; i++)
+        {
+            sensor_data = read_distance_ms();
+            if (sensor_data == -1)
+                sensor_data = 0;
+            tab[i] = sensor_data;
+        }
+        return ;
+    }
+    sensor_data = read_distance_ms();
 
-//     for (int i = 0; i < size; i++)
-//         avg += tab[i];
-//     return (avg / size);
-// }
+    // char str[10];
+    // itoa(sensor_data, str, 10);
+    // add_endline(str);
+    // printf("sensor data = %f\n", sensor_data);
+    // uart_write_bytes(UART_NUM_0, str, 10);
+    if (sensor_data == -1)
+        sensor_data = 0;
+    // printf("sensor data = %f\n", sensor_data);
+    for (int i = 0; i < size - 1; i++)
+        tab[i] = tab[i + 1];
+    tab[size - 1] = sensor_data;
+    // for (int i = 0; i < size - 1; i++)
+        // printf("tab[%d] = %f\n", i, tab[i]);
+    // printf("=========\n");
+}
+
+float get_avg_ftab(float *tab, int size)
+{
+    float avg = 0;
+
+    for (int i = 0; i < size; i++)
+        avg += tab[i];
+    return (avg / size);
+}
 
 float lerp(float a, float b, float t)
 {
@@ -380,12 +412,12 @@ int start_radial(t_rmt *module, sensor_data_t *sensor_data)
 {
     // float            target_frame_time_ms = 33.333f; // 1000 / 60 (fps)
     // static float     distance_tab[10];
-    // float            distance;
     // uint64_t         start_time;
     // int colors_1[5];
     // int colors_2[5];
     
     __uint8_t led_data[300 * 3];
+    float     avg_distance;
 
     // palette_one(colors_1);
     // palette_two(colors_2);
@@ -399,7 +431,10 @@ int start_radial(t_rmt *module, sensor_data_t *sensor_data)
     // printf("distance = %f\n", distance);
     // for (int i = 0; i < 5; i++)
     //     active_palette[i] = interpolate_color(colors_1[i], colors_2[i], distance);
-    // pixellization = lerp(pixellization, distance, 0.2f);
+    pthread_mutex_lock(sensor_data->avg_lock);
+    avg_distance = *(sensor_data->average);
+    pthread_mutex_unlock(sensor_data->avg_lock);
+    pixellization = lerp(pixellization, avg_distance, 0.2f);
     // printf("branches = %f\n", pixellization);
     // start_time = esp_timer_get_time();
     radial_gradient();
@@ -434,21 +469,36 @@ int start_radial(t_rmt *module, sensor_data_t *sensor_data)
     // push_img(img, window);
     frame++;
     // print_matrix(leds);
-    ESP_ERROR_CHECK(rmt_tx_wait_all_done(module->tx_channel, -1));
     ESP_ERROR_CHECK(rmt_transmit(module->tx_channel, module->encoder, led_data, sizeof(led_data), &module->tx_config));
+    ESP_ERROR_CHECK(rmt_tx_wait_all_done(module->tx_channel, -1));
     // printf("temps ecoule = %lld\n", esp_timer_get_time() - start_time);
     return (0); 
 }
 
-typedef struct sensor_data_s
+void update_average_distance(sensor_data_t *sensor_data)
 {
-    pthread_mutex_t *avg_lock;
-    float           *average;
-}   sensor_data_t;
+    static float distance_tab[10] = {-1};
+    float        dist_avg;
 
-void get_avg_routine(sensor_data_t *sensor_data)
+    get_distance_tab(distance_tab, 10);
+    // for (int i = 0; i < 10; i++)
+    //     printf("dist %d = %f\n", i, distance_tab[i]);
+    // printf("=========\n");
+    dist_avg = get_avg_ftab(distance_tab, 10);
+    dist_avg = clamp(dist_avg, 0.0f, 100.0f);
+    // dist_avg = norm_value(dist_avg, 0, 50.0f);
+    pthread_mutex_lock(sensor_data->avg_lock);
+    *(sensor_data->average) = dist_avg;
+    pthread_mutex_unlock(sensor_data->avg_lock);
+}
+
+void distance_thread_routine(sensor_data_t *sensor_data)
 {
-    
+    while (1)
+    {
+        update_average_distance(sensor_data);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
 }
 
 int radial_loop(t_rmt *module)
@@ -462,7 +512,8 @@ int radial_loop(t_rmt *module)
         return (-1);
     sensor_data.average = &avg_distance;
     sensor_data.avg_lock = &avg_mutex;
-    if (pthread_create(&sensor_thread, NULL, (void *)get_avg_routine, &sensor_data) == -1)
+    if (pthread_create(&sensor_thread, NULL, (void *)distance_thread_routine, &sensor_data) == -1)
+        return (-1);
     while (1)
     {
         start_radial(module, &sensor_data);

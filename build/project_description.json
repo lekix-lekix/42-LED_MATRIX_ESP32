@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "LED_Matrix",
-    "project_version":    "ec3ca8b-dirty",
+    "project_version":    "21a1e2d-dirty",
     "project_path":       "/home/lekix/Desktop/DEV/42/42-LED_MATRIX_ESP32",
     "idf_path":           "/home/lekix/esp/esp-idf",
     "build_dir":          "/home/lekix/Desktop/DEV/42/42-LED_MATRIX_ESP32/build",

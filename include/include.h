@@ -65,6 +65,12 @@ typedef struct color
     int b;
 }                   t_color;
 
+typedef struct sensor_data_s
+{
+    pthread_mutex_t     *avg_lock;
+    float               *average; 
+}   sensor_data_t;
+
 /******* MLX ********/
 // t_mlx	start_mlx(int width, int height);
 // t_img	*init_img(t_mlx *window);
@@ -88,10 +94,13 @@ void	palette_three(int *colors);
 void	palette_four(int *colors);
 int	    interpolate_color(int color_a, int color_b, float t);
 int	    get_color_gradient(float iter, int *colors, int nb_colors);
-int	get_r(int trgb);
-int	get_g(int trgb);
-int	get_b(int trgb);
+int	    get_r(int trgb);
+int	    get_g(int trgb);
+int	    get_b(int trgb);
 
 float	normalize_value(float value, float min, float max);
+
+/************* SENSOR ********* */
+int32_t read_distance_ms();
 
 #endif

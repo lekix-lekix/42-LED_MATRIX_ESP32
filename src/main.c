@@ -66,33 +66,38 @@ int32_t read_distance_ms()
 {
     int64_t start_time = 0;
     int64_t end_time = 0;
-    int64_t echo_start = 0;
+    // int64_t echo_start = 0;
 
     // Envoi du trigger (10 µs HIGH)
     gpio_set_level(SENSOR_TRIG, 1);
     esp_rom_delay_us(10);
     gpio_set_level(SENSOR_TRIG, 0);
 
-    start_time = esp_timer_get_time();
     while (gpio_get_level(SENSOR_READ) == 0) 
     {
-        if ((esp_timer_get_time() - start_time) > 10000) // 30000 == 5us
-            return (-1);
+        // if ((esp_timer_get_time() - start_time) > 10000) // 30000 == 5us
+        // return (-1);
     }
-    echo_start = esp_timer_get_time();
+    start_time = esp_timer_get_time();
+    // echo_start = esp_timer_get_time();
     while (gpio_get_level(SENSOR_READ) == 1) 
     {
-        if ((esp_timer_get_time() - echo_start) > 10000) // 30000 == 5us
-            return (-1);
+        // if ((esp_timer_get_time() - echo_start) > 10000) // 30000 == 5us
+        //     return (-1);
     }
     end_time = esp_timer_get_time();
 
-    int32_t distance = (end_time - start_time) * 0.0343;
-    return (distance);
+    int32_t distance = ((end_time - start_time) * 0.0343);
+    // printf("distance = %ld\n", distance);
+    char str[10];
+    itoa(distance, str, 10);
+    uart_write_bytes(UART_NUM_0, str, 10);
+    return (distance);  
     // Conversion en cm (vitesse du son = 343 m/s = 0.0343 cm/µs)
     // float distance = (duration * 0.0343) / 2;
     // return distance;
 }
+
 
 void uart_init()
 {
@@ -156,10 +161,11 @@ void app_main()
     // Connecter la bonne pin au module RMT
     REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG, RMT_SIG_OUT0_IDX);
     // Activer la pin en output
-    REG_WRITE(GPIO_ENABLE_REG, 1 << 18);
+    REG_WRITE(GPIO_ENABLE_REG, 1 << 19);
 
     t_rmt module;
-    setup_rmt_module(18, &module);
+    setup_rmt_module(19, &module);  
+    uart_init();
     setup_sensor();
     radial_loop(&module);
     // uint8_t led_data[300 * 3];
