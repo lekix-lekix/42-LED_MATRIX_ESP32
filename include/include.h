@@ -68,8 +68,15 @@ typedef struct color
 typedef struct sensor_data_s
 {
     pthread_mutex_t     *avg_lock;
-    float               *average; 
+    pthread_mutex_t     *interp_lock;
+    float               last_value;
+    float               next_value;
+    float               interp;
+    float               average; 
+    // t_mlx               *window;
+    int                  uart_fd;
 }   sensor_data_t;
+
 
 /******* MLX ********/
 // t_mlx	start_mlx(int width, int height);
@@ -80,14 +87,14 @@ typedef struct sensor_data_s
 // void    draw_grid(t_img *img, int color);
 // void    push_img(t_img *img, t_mlx *window);
 
-int    radial_loop(t_rmt *module);
+int    start_radial(t_rmt *module);
 // void    linear_loop(t_mlx *window);
 // int     conway_loop(t_mlx *param_window);
 
 // int     wheel(__uint8_t pos);
 
 /*********** COLORS ********** */
-int	create_trgb(int t, int r, int g, int b);
+int	    create_trgb(int t, int r, int g, int b);
 void	palette_one(int *colors);
 void	palette_two(int *colors);
 void	palette_three(int *colors);
@@ -102,5 +109,13 @@ float	normalize_value(float value, float min, float max);
 
 /************* SENSOR ********* */
 int32_t read_distance_ms();
+
+
+/************* MATHS *************/
+float   square(float nb);
+float   get_norm_distance(t_cell *cell, t_cell *center, float max_distance);
+float   clamp(float value, float min, float max);
+float   lerp(float a, float b, float t);
+float   norm_value(float value, float min, float max);
 
 #endif

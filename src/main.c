@@ -64,40 +64,32 @@ void setup_sensor()
 
 int32_t read_distance_ms()
 {
-    int64_t start_time = 0;
-    int64_t end_time = 0;
-    // int64_t echo_start = 0;
-
-    // Envoi du trigger (10 µs HIGH)
+    // Envoi du trigger
     gpio_set_level(SENSOR_TRIG, 1);
     esp_rom_delay_us(10);
     gpio_set_level(SENSOR_TRIG, 0);
 
-    while (gpio_get_level(SENSOR_READ) == 0) 
-    {
-        // if ((esp_timer_get_time() - start_time) > 10000) // 30000 == 5us
-        // return (-1);
+    // Attente front montant
+    int64_t t0 = esp_timer_get_time();
+    while (gpio_get_level(SENSOR_READ) == 0) {
+        if (esp_timer_get_time() - t0 > 30000)
+            return -1;
     }
-    start_time = esp_timer_get_time();
-    // echo_start = esp_timer_get_time();
-    while (gpio_get_level(SENSOR_READ) == 1) 
-    {
-        // if ((esp_timer_get_time() - echo_start) > 10000) // 30000 == 5us
-        //     return (-1);
-    }
-    end_time = esp_timer_get_time();
+    int64_t start = esp_timer_get_time();
 
-    int32_t distance = ((end_time - start_time) * 0.0343);
-    // printf("distance = %ld\n", distance);
+    // Attente front descendant
+    while (gpio_get_level(SENSOR_READ) == 1) {
+        if (esp_timer_get_time() - start > 30000)
+            return -1;
+    }
+    int64_t end = esp_timer_get_time();
+
+    int32_t distance = (end - start) * 0.0343f;
     char str[10];
     itoa(distance, str, 10);
     uart_write_bytes(UART_NUM_0, str, 10);
-    return (distance);  
-    // Conversion en cm (vitesse du son = 343 m/s = 0.0343 cm/µs)
-    // float distance = (duration * 0.0343) / 2;
-    // return distance;
+    return ((end - start) * 0.0343f);
 }
-
 
 void uart_init()
 {
@@ -121,41 +113,6 @@ int ft_strlen(char *str)
     return (i);
 }
 
-// void app_main()
-// {
-//     // Connecter la bonne pin au module RMT
-//     // REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG, RMT_SIG_OUT0_IDX);
-//     // Activer la pin en output
-//     // REG_WRITE(GPIO_ENABLE_REG, 1 << 18);
-    
-//     // t_rmt module;
-//     // setup_rmt_module(18, &module);
-
-//     // launch_conway_simulation(&module);
-    
-//     uart_init();
-//     setup_sensor();
-
-//     int distance_ms;
-//     int64_t start_time;
-//     int64_t end_time;
-//     char    str[10];
-
-//     while (1) {
-//         start_time = esp_timer_get_time();
-//         distance_ms = read_distance_ms();
-//         // printf("distance measured esp = %lld\n", distance_ms);
-//         end_time = esp_timer_get_time();
-//         // printf("tmps ecoule : %lld\n", end_time - start_time);
-//         itoa(distance_ms, str, 10);
-//         // printf("final str = %s\n", str);
-//         uart_write_bytes(UART_NUM_0, str, 10);
-//         for (int i = 0; i < 10; i++)
-//             str[i] = '\0';
-//         vTaskDelay(pdMS_TO_TICKS(29));
-//     }
-// }
-
 void app_main()
 {
     // Connecter la bonne pin au module RMT
@@ -167,16 +124,5 @@ void app_main()
     setup_rmt_module(19, &module);  
     uart_init();
     setup_sensor();
-    radial_loop(&module);
-    // uint8_t led_data[300 * 3];
-    // int      led_i;
-    // for (int i = 0; i < 300; i++)
-    // {
-    //     led_data[i * 3 + 0] = 0xDC;
-    //     led_data[i * 3 + 1] = 0xDC;
-    //     led_data[i * 3 + 2] = 0xC8;
-    // }
-    // ESP_ERROR_CHECK(rmt_transmit(module.tx_channel, module.encoder, led_data, sizeof(led_data), &module.tx_config));
-    // ESP_ERROR_CHECK(rmt_tx_wait_all_done(module.tx_channel, -1));
-    // while (1) {}
+    start_radial(&module);
 }
