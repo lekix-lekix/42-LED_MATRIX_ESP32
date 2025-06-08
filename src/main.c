@@ -6,8 +6,6 @@
 #include "esp_timer.h"
 #include "../include/include.h"
 
-#define SENSOR_TRIG 5
-#define SENSOR_READ 18
 #define BUFF_SIZE 1024
 
 void setup_rmt_module(int gpio, t_rmt *rmt)
@@ -62,23 +60,23 @@ void setup_sensor()
     gpio_config(&pin_18);
 }
 
-int32_t read_distance_ms()
+int32_t read_distance_ms(int sensor_read, int sensor_trig)
 {
     // Envoi du trigger
-    gpio_set_level(SENSOR_TRIG, 1);
+    gpio_set_level(sensor_trig, 1);
     esp_rom_delay_us(10);
-    gpio_set_level(SENSOR_TRIG, 0);
+    gpio_set_level(sensor_trig, 0);
 
     // Attente front montant
     int64_t t0 = esp_timer_get_time();
-    while (gpio_get_level(SENSOR_READ) == 0) {
+    while (gpio_get_level(sensor_read) == 0) {
         if (esp_timer_get_time() - t0 > 30000)
             return -1;
     }
     int64_t start = esp_timer_get_time();
 
     // Attente front descendant
-    while (gpio_get_level(SENSOR_READ) == 1) {
+    while (gpio_get_level(sensor_read) == 1) {
         if (esp_timer_get_time() - start > 30000)
             return -1;
     }

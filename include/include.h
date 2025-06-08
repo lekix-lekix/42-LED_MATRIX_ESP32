@@ -17,6 +17,7 @@
 #include <sys/time.h>
 #include <sys/select.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <math.h>
@@ -31,6 +32,10 @@
 // #define SERIAL_PORT "/dev/ttyUSB0"  // Change ceci en fonction de ton port série
 #define BUFFER_SIZE 256
 
+#define SENSOR_TRIG_1 5
+#define SENSOR_READ_1 18
+#define SENSOR_TRIG_2 16
+#define SENSOR_READ_2 17
 
 typedef struct timeval t_timeval;
 
@@ -72,7 +77,8 @@ typedef struct sensor_data_s
     float               last_value;
     float               next_value;
     float               interp;
-    float               average; 
+    int                 dist_sensor_1;
+    int                 dist_sensor_2; 
     // t_mlx               *window;
     int                  uart_fd;
 }   sensor_data_t;
@@ -108,7 +114,7 @@ int	    get_b(int trgb);
 float	normalize_value(float value, float min, float max);
 
 /************* SENSOR ********* */
-int32_t read_distance_ms();
+int32_t read_distance_ms(int sensor_read, int sensor_trig);
 
 
 /************* MATHS *************/

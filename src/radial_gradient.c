@@ -31,9 +31,24 @@ void reset_cell_state()
     }
 }
 
+float calculate_radient(t_cell *center, float form, float max_distance, int i, int j)
+{
+    t_cell cell = {i, j};
+
+    cell.x = i;
+    cell.y = j;
+    float angle = atan2(cell.y - center->y, cell.x - center->x);
+    float distance = get_norm_distance(&cell, center, max_distance);
+    float pulse = sin(distance * 0.1f + frame * 0.01f);
+    float r = distance * (form + (pixellization * pulse * sin(branches * angle)));
+    // float r = distance * (form + (pixellization * sin(branches * angle)));
+    float raw_color = (r / max_distance + (float)frame * anim_speed);
+    return (fmodf(fabsf(raw_color), 1.0f));
+}
+
 void radial_gradient()
 {
-    t_cell cell;
+    // t_cell cell;
     t_cell center = {9, 7};
     float max_distance = 9;
     int   colors[5];
@@ -72,15 +87,16 @@ void radial_gradient()
     {
         for (int j = 0; j < G_HEIGHT; j++)
         {
-            cell.x = i;
-            cell.y = j;
-            float angle = atan2(cell.y - center.y, cell.x - center.x);
-            float distance = get_norm_distance(&cell, &center, max_distance);
-            float pulse = sin(distance * 0.1f + frame * 0.01f);
-            float r = distance * (form + (pixellization * pulse * sin(branches * angle)));
-            // float r = distance * (form + (pixellization * sin(branches * angle)));
-            float raw_color = (r / max_distance + (float)frame * anim_speed);
-            color = fmodf(fabsf(raw_color), 1.0f);
+            color = calculate_radient(&center, form, max_distance, i, j);
+            // cell.x = i;
+            // cell.y = j;
+            // float angle = atan2(cell.y - center.y, cell.x - center.x);
+            // float distance = get_norm_distance(&cell, &center, max_distance);
+            // float pulse = sin(distance * 0.1f + frame * 0.01f);
+            // float r = distance * (form + (pixellization * pulse * sin(branches * angle)));
+            // // float r = distance * (form + (pixellization * sin(branches * angle)));
+            // float raw_color = (r / max_distance + (float)frame * anim_speed);
+            // color = fmodf(fabsf(raw_color), 1.0f);
 
             // if (transition_start_frame)
             // {
@@ -181,7 +197,7 @@ long int	get_time_elapsed(t_timeval *starting_time)
 void get_sensor_values(sensor_data_t *data, float *curr_distance)
 {
     pthread_mutex_lock(data->avg_lock);
-    float avg = clamp(data->average, 0.0f, 100.0f);
+    float avg = clamp(data->dist_sensor_1, 0.0f, 100.0f);
     if (*curr_distance == -1)
     {
         *curr_distance = avg;
@@ -270,10 +286,27 @@ int radial_loop(t_rmt *module, sensor_data_t *sensor_data)
 
 void update_average_distance(sensor_data_t *data)
 {
-    float new_sample = read_distance_ms();
+    int  sample_sens_1;
+    int  sample_sens_2;
+    char sample1[11];
+    char sample2[10];
+    char final_str[23];
+
+    sample_sens_1 = read_distance_ms(SENSOR_READ_1, SENSOR_TRIG_1);
+    sample_sens_2 = read_distance_ms(SENSOR_READ_2, SENSOR_TRIG_2);
+    
     pthread_mutex_lock(data->avg_lock);
-    data->average = new_sample;
+    data->dist_sensor_1 = sample_sens_1;
+    data->dist_sensor_2 = sample_sens_2;
     pthread_mutex_unlock(data->avg_lock);
+
+    itoa(sample_sens_1, sample1, 10);
+    itoa(sample_sens_2, sample2, 10);
+    add_endline(sample1);
+    strcat(final_str, sample1);
+    strcat(final_str, sample2);
+    printf("final_str = %s\n", final_str);
+    uart_write_bytes(UART_NUM_0, final_str, 23);
 }
 
 void distance_thread_routine(void *data)
@@ -295,7 +328,8 @@ int start_radial(t_rmt *module)
 
     if (pthread_mutex_init(&avg_mutex, NULL) == -1 || pthread_mutex_init(&interp_mutex, NULL) == -1)
         return (-1);
-    sensor_data.average = 0;
+    sensor_data.dist_sensor_1 = 0;
+    sensor_data.dist_sensor_2 = 0;
     sensor_data.last_value = 0;
     sensor_data.next_value = 0;
     sensor_data.interp = 0;
