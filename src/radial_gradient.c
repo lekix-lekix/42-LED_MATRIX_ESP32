@@ -288,7 +288,8 @@ void update_average_distance(sensor_data_t *data)
 {
     int  sample_sens_1;
     int  sample_sens_2;
-    char sample1[11];
+    // char sample1[11];
+    char sample1[10];
     char sample2[10];
     char final_str[23];
 
@@ -300,13 +301,23 @@ void update_average_distance(sensor_data_t *data)
     data->dist_sensor_2 = sample_sens_2;
     pthread_mutex_unlock(data->avg_lock);
 
+    // printf("sample 1 = %d\n", sample_sens_1);
+    // printf("sample 2 = %d\n", sample_sens_2);
+
+    bzero(sample1, 10);
+    bzero(sample2, 10);
+    bzero(final_str, 23);
     itoa(sample_sens_1, sample1, 10);
     itoa(sample_sens_2, sample2, 10);
     add_endline(sample1);
+    // add_endline(sample2);
     strcat(final_str, sample1);
     strcat(final_str, sample2);
-    printf("final_str = %s\n", final_str);
+    // printf("int sample = %d\n", sample_sens_1);
+    // printf("sample str = %s\n", sample1);
     uart_write_bytes(UART_NUM_0, final_str, 23);
+    // printf("final_str = %s\n", final_str);
+    // uart_write_bytes(UART_NUM_0, final_str, 23);
 }
 
 void distance_thread_routine(void *data)

@@ -39,29 +39,30 @@ void setup_rmt_module(int gpio, t_rmt *rmt)
     ESP_ERROR_CHECK(rmt_new_bytes_encoder(&rmt->config, &rmt->encoder));
 }
 
-void setup_sensor()
+void setup_sensor(int sensor_read, int sensor_trig)
 {
-    gpio_config_t pin_5;
-    gpio_config_t pin_18;
+    gpio_config_t sensor_trig_config;
+    gpio_config_t sensor_read_config;
 
-    pin_5.intr_type = GPIO_INTR_DISABLE;
-    pin_5.pin_bit_mask = (1ULL << 5);
-    pin_5.mode = GPIO_MODE_OUTPUT;
-    pin_5.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    pin_5.pull_up_en = GPIO_PULLUP_DISABLE;
+    sensor_trig_config.intr_type = GPIO_INTR_DISABLE;
+    sensor_trig_config.pin_bit_mask = (1ULL << sensor_trig);
+    sensor_trig_config.mode = GPIO_MODE_OUTPUT;
+    sensor_trig_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    sensor_trig_config.pull_up_en = GPIO_PULLUP_DISABLE;
 
-    pin_18.intr_type = GPIO_INTR_DISABLE;
-    pin_18.pin_bit_mask = (1ULL << 18);
-    pin_18.mode = GPIO_MODE_INPUT;
-    pin_18.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    pin_18.pull_up_en = GPIO_PULLUP_DISABLE;
+    sensor_read_config.intr_type = GPIO_INTR_DISABLE;
+    sensor_read_config.pin_bit_mask = (1ULL << sensor_read);
+    sensor_read_config.mode = GPIO_MODE_INPUT;
+    sensor_read_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    sensor_read_config.pull_up_en = GPIO_PULLUP_DISABLE;
 
-    gpio_config(&pin_5);
-    gpio_config(&pin_18);
+    gpio_config(&sensor_trig_config);
+    gpio_config(&sensor_read_config);
 }
 
 int32_t read_distance_ms(int sensor_read, int sensor_trig)
 {
+    int32_t distance = -1;
     // Envoi du trigger
     gpio_set_level(sensor_trig, 1);
     esp_rom_delay_us(10);
@@ -70,23 +71,26 @@ int32_t read_distance_ms(int sensor_read, int sensor_trig)
     // Attente front montant
     int64_t t0 = esp_timer_get_time();
     while (gpio_get_level(sensor_read) == 0) {
-        if (esp_timer_get_time() - t0 > 30000)
-            return -1;
+        // if (esp_timer_get_time() - t0 > 30000)
+            // break;
     }
     int64_t start = esp_timer_get_time();
 
     // Attente front descendant
     while (gpio_get_level(sensor_read) == 1) {
-        if (esp_timer_get_time() - start > 30000)
-            return -1;
+        // if (esp_timer_get_time() - start > 30000)
+            // break;
     }
     int64_t end = esp_timer_get_time();
 
-    int32_t distance = (end - start) * 0.0343f;
-    char str[10];
-    itoa(distance, str, 10);
-    uart_write_bytes(UART_NUM_0, str, 10);
-    return ((end - start) * 0.0343f);
+    // if (distance != -1)
+    distance = (end - start) * 0.0343f;
+    // char str[10];
+    // bzero(str, 10);
+    // itoa(distance, str, 10);
+    // // printf("str = %s\n", str);
+    // uart_write_bytes(UART_NUM_0, str, 10);
+    return (distance);
 }
 
 void uart_init()
@@ -121,6 +125,7 @@ void app_main()
     t_rmt module;
     setup_rmt_module(19, &module);  
     uart_init();
-    setup_sensor();
+    setup_sensor(SENSOR_READ_1, SENSOR_TRIG_1);
+    setup_sensor(SENSOR_READ_2, SENSOR_TRIG_2);
     start_radial(&module);
 }
