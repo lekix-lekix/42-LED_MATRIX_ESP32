@@ -21,6 +21,15 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <math.h>
+#include "rmt_module.h"
+#include "driver/gpio.h"
+#include "conway.h"
+#include "esp_log.h"
+#include "driver/uart.h"
+#include "esp_timer.h"
+#include "esp_pthread.h"
+#include "pthread.h"
+#include "../include/rmt_module.h"
 #include "../include/rmt_module.h"
 
 // #include <fcntl.h>
@@ -72,15 +81,15 @@ typedef struct color
 
 typedef struct sensor_data_s
 {
-    pthread_mutex_t     *avg_lock;
+    pthread_mutex_t     *dist_lock;
     pthread_mutex_t     *interp_lock;
-    float               last_value;
-    float               next_value;
-    float               interp;
+    float               sens_1_last_value;
+    float               sens_1_next_value;
+    float               sens_1_interp;
     int                 dist_sensor_1;
     int                 dist_sensor_2; 
     // t_mlx               *window;
-    int                  uart_fd;
+    int                 uart_fd;
 }   sensor_data_t;
 
 
@@ -115,7 +124,9 @@ float	normalize_value(float value, float min, float max);
 
 /************* SENSOR ********* */
 int32_t read_distance_ms(int sensor_read, int sensor_trig);
-
+void get_sensor_1_values(sensor_data_t *data, float *curr_distance);
+void get_sensor_2_values(sensor_data_t *data, float *curr_distance);
+void update_average_distance(sensor_data_t *data);
 
 /************* MATHS *************/
 float   square(float nb);
@@ -123,5 +134,7 @@ float   get_norm_distance(t_cell *cell, t_cell *center, float max_distance);
 float   clamp(float value, float min, float max);
 float   lerp(float a, float b, float t);
 float   norm_value(float value, float min, float max);
+
+/************** */
 
 #endif

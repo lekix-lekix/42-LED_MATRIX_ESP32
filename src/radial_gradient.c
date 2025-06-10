@@ -1,8 +1,4 @@
 #include "../include/include.h"
-#include "../include/rmt_module.h"
-#include "esp_timer.h"
-#include "esp_pthread.h"
-#include "pthread.h"
 
 float branches = -2.0f;
 float pixellization = 10; // 2.90f; // 1,
@@ -31,18 +27,23 @@ void reset_cell_state()
     }
 }
 
-float calculate_radient(t_cell *center, float form, float max_distance, int i, int j)
+float calculate_radient(t_cell *center, float max_distance, int x, int y)
 {
-    t_cell cell = {i, j};
+    t_cell cell;
 
-    cell.x = i;
-    cell.y = j;
+    cell.x = x;
+    cell.y = y;
+
     float angle = atan2(cell.y - center->y, cell.x - center->x);
     float distance = get_norm_distance(&cell, center, max_distance);
-    float pulse = sin(distance * 0.1f + frame * 0.01f);
-    float r = distance * (form + (pixellization * pulse * sin(branches * angle)));
-    // float r = distance * (form + (pixellization * sin(branches * angle)));
+
+    float form = -8.0f + 2.0f * sin(frame * 0.02f); // pulsation douce
+
+    // float pulse = sin(distance * 0.1f + frame * 0.01f);
+    // float r = distance * (form + (pixellization * pulse * sin(branches * angle)));
+    float r = distance * (form + (pixellization * sin(branches * angle)));
     float raw_color = (r / max_distance + (float)frame * anim_speed);
+    // printf("raw color = %f\n", fmodf(fabsf(raw_color), 1.0f));
     return (fmodf(fabsf(raw_color), 1.0f));
 }
 
@@ -79,7 +80,7 @@ void radial_gradient()
         default:
             break;
     }
-    float form = -10.0f;         // -2, -200
+    // float form = -10.0f;         // -2, -200
 
     // float anim_relaunch_radius = clamp((frame - restart_frame) * 0.005f, 0.0f, 1.0f);
 
@@ -87,7 +88,7 @@ void radial_gradient()
     {
         for (int j = 0; j < G_HEIGHT; j++)
         {
-            color = calculate_radient(&center, form, max_distance, i, j);
+            color = calculate_radient(&center, max_distance, i, j);
             // cell.x = i;
             // cell.y = j;
             // float angle = atan2(cell.y - center.y, cell.x - center.x);
@@ -126,6 +127,7 @@ void radial_gradient()
             // }
             // else
             leds[j][i] = get_color_gradient(color, colors, 5);
+            // printf("led data = %d\n", leds[j][i]);
             // draw_cell(img, i, j, get_color_gradient(color, colors, 5));
                         // printf("i = %d j = %d\n", i, j);
         }
@@ -194,29 +196,7 @@ long int	get_time_elapsed(t_timeval *starting_time)
 	return (time_elapsed);
 }
 
-void get_sensor_values(sensor_data_t *data, float *curr_distance)
-{
-    pthread_mutex_lock(data->avg_lock);
-    float avg = clamp(data->dist_sensor_1, 0.0f, 100.0f);
-    if (*curr_distance == -1)
-    {
-        *curr_distance = avg;
-        pthread_mutex_unlock(data->avg_lock);
-        return ;
-    }
-    if (avg == *curr_distance)
-    {
-        pthread_mutex_unlock(data->avg_lock);
-        return ;
-    }
-    data->last_value = *curr_distance;
-    data->next_value = avg;
-    data->interp = 0.0f;
-    *curr_distance = avg;
-    pthread_mutex_unlock(data->avg_lock);
-}
-
-void send_data_leds(uint8_t *led_data, t_rmt *module)
+void send_data_leds(uint8_t led_data[900], t_rmt *module)
 {
     int led_i = 0;
     for (int i = 0; i < G_HEIGHT; i++)
@@ -230,15 +210,30 @@ void send_data_leds(uint8_t *led_data, t_rmt *module)
             led_i++;
         }
     }
-    ESP_ERROR_CHECK(rmt_transmit(module->tx_channel, module->encoder, led_data, sizeof(led_data), &module->tx_config));
+    ESP_ERROR_CHECK(rmt_transmit(module->tx_channel, module->encoder, led_data, sizeof(uint8_t) * 900, &module->tx_config));
     ESP_ERROR_CHECK(rmt_tx_wait_all_done(module->tx_channel, -1));
+}
+
+void    set_pixellization(sensor_data_t *sensor_data, float *distance)
+{
+    // Lissage EMA
+    float alpha = 0.04f;  // rapide mais fluide
+    
+    pthread_mutex_lock(sensor_data->dist_lock);
+    sensor_data->sens_1_interp += alpha;
+    if (sensor_data->sens_1_interp > 1.0f)
+        sensor_data->sens_1_interp = 1.0f;
+    *distance = lerp(sensor_data->sens_1_last_value, sensor_data->sens_1_next_value, sensor_data->sens_1_interp);
+    pthread_mutex_unlock(sensor_data->dist_lock);
+
+    float curved = powf(normalize_value(*distance, 0.0f, 50.0f), 1.2f); // légère courbe pour douceur
+    pixellization = lerp(27.0f, 3.0f, curved);
 }
 
 int radial_loop(t_rmt *module, sensor_data_t *sensor_data)
 {
     // float               target_frame_time_ms = 33.333f; // 1000 / 60 (fps)
     // static float     distance_tab[10];
-    float               smoothed_distance = -1.0f;
     static float        distance = -1.0f;
     // long int            frame_time;
     // t_timeval           timer;
@@ -250,74 +245,21 @@ int radial_loop(t_rmt *module, sensor_data_t *sensor_data)
     // sensor_data_t *sensor_data = (sensor_data_t *)data;
     // palette_one(colors_1);
     // palette_two(colors_2);
-
-    if (smoothed_distance < 0.0f)
-        smoothed_distance = distance;
     
     // distance = clamp(distance, 0.0f, 50.0f);
 
-    get_sensor_values(sensor_data, &distance);
+    get_sensor_1_values(sensor_data, &distance);
+    set_pixellization(sensor_data, &distance);
     // printf("distance in main = %f\n", distance);
-    
-    // Lissage EMA
-    float alpha = 0.05f;  // rapide mais fluide
-    
-    pthread_mutex_lock(sensor_data->avg_lock);
-    sensor_data->interp += alpha;
-    if (sensor_data->interp > 1.0f)
-        sensor_data->interp = 1.0f;
-    smoothed_distance = lerp(sensor_data->last_value, sensor_data->next_value, sensor_data->interp);
-    pthread_mutex_unlock(sensor_data->avg_lock);
-    
-    distance = smoothed_distance;
-    float normalized = normalize_value(smoothed_distance, 0.0f, 50.0f);
-    float curved = powf(normalized, 1.2f); // légère courbe pour douceur
-    
-    pixellization = curved * 12.0f;
         
     // printf("di = %f interp = %f last = %f next = %f pix = %f\n", distance, sensor_data->interp, sensor_data->last_value, sensor_data->next_value, pixellization);
     // printf("pixellization : %f\n", pixellization);
 
     radial_gradient();
+    // printf("coucou\n");
     send_data_leds(led_data, module);
     frame++;
     return (0);
-}
-
-void update_average_distance(sensor_data_t *data)
-{
-    int  sample_sens_1;
-    int  sample_sens_2;
-    // char sample1[11];
-    char sample1[10];
-    char sample2[10];
-    char final_str[23];
-
-    sample_sens_1 = read_distance_ms(SENSOR_READ_1, SENSOR_TRIG_1);
-    sample_sens_2 = read_distance_ms(SENSOR_READ_2, SENSOR_TRIG_2);
-    
-    pthread_mutex_lock(data->avg_lock);
-    data->dist_sensor_1 = sample_sens_1;
-    data->dist_sensor_2 = sample_sens_2;
-    pthread_mutex_unlock(data->avg_lock);
-
-    // printf("sample 1 = %d\n", sample_sens_1);
-    // printf("sample 2 = %d\n", sample_sens_2);
-
-    bzero(sample1, 10);
-    bzero(sample2, 10);
-    bzero(final_str, 23);
-    itoa(sample_sens_1, sample1, 10);
-    itoa(sample_sens_2, sample2, 10);
-    add_endline(sample1);
-    // add_endline(sample2);
-    strcat(final_str, sample1);
-    strcat(final_str, sample2);
-    // printf("int sample = %d\n", sample_sens_1);
-    // printf("sample str = %s\n", sample1);
-    uart_write_bytes(UART_NUM_0, final_str, 23);
-    // printf("final_str = %s\n", final_str);
-    // uart_write_bytes(UART_NUM_0, final_str, 23);
 }
 
 void distance_thread_routine(void *data)
@@ -326,7 +268,7 @@ void distance_thread_routine(void *data)
     while (1)
     {
         update_average_distance(sensor_data);
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 }
 
@@ -341,10 +283,10 @@ int start_radial(t_rmt *module)
         return (-1);
     sensor_data.dist_sensor_1 = 0;
     sensor_data.dist_sensor_2 = 0;
-    sensor_data.last_value = 0;
-    sensor_data.next_value = 0;
-    sensor_data.interp = 0;
-    sensor_data.avg_lock = &avg_mutex;
+    sensor_data.sens_1_last_value = 0;
+    sensor_data.sens_1_next_value = 0;
+    sensor_data.sens_1_interp = 0;
+    sensor_data.dist_lock = &avg_mutex;
     sensor_data.interp_lock = &interp_mutex;
     void *data = &sensor_data;
     if (pthread_create(&sensor_thread, NULL, (void *)distance_thread_routine, data) == -1)

@@ -1,9 +1,3 @@
-#include "rmt_module.h"
-#include "driver/gpio.h"
-#include "conway.h"
-#include "esp_log.h"
-#include "driver/uart.h"
-#include "esp_timer.h"
 #include "../include/include.h"
 
 #define BUFF_SIZE 1024
@@ -58,39 +52,6 @@ void setup_sensor(int sensor_read, int sensor_trig)
 
     gpio_config(&sensor_trig_config);
     gpio_config(&sensor_read_config);
-}
-
-int32_t read_distance_ms(int sensor_read, int sensor_trig)
-{
-    int32_t distance = -1;
-    // Envoi du trigger
-    gpio_set_level(sensor_trig, 1);
-    esp_rom_delay_us(10);
-    gpio_set_level(sensor_trig, 0);
-
-    // Attente front montant
-    int64_t t0 = esp_timer_get_time();
-    while (gpio_get_level(sensor_read) == 0) {
-        // if (esp_timer_get_time() - t0 > 30000)
-            // break;
-    }
-    int64_t start = esp_timer_get_time();
-
-    // Attente front descendant
-    while (gpio_get_level(sensor_read) == 1) {
-        // if (esp_timer_get_time() - start > 30000)
-            // break;
-    }
-    int64_t end = esp_timer_get_time();
-
-    // if (distance != -1)
-    distance = (end - start) * 0.0343f;
-    // char str[10];
-    // bzero(str, 10);
-    // itoa(distance, str, 10);
-    // // printf("str = %s\n", str);
-    // uart_write_bytes(UART_NUM_0, str, 10);
-    return (distance);
 }
 
 void uart_init()
