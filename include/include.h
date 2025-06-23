@@ -40,31 +40,14 @@
 
 // #define SERIAL_PORT "/dev/ttyUSB0"  // Change ceci en fonction de ton port série
 #define BUFFER_SIZE 256
-
-#define SENSOR_TRIG_1 5
-#define SENSOR_READ_1 18
-#define SENSOR_TRIG_2 16
-#define SENSOR_READ_2 17
+ 
+#define SENSOR_TRIG_1 19
+#define SENSOR_READ_1 5
+#define SENSOR_TRIG_2 18
+#define SENSOR_READ_2 21
+#define SOUND_SENSOR  22
 
 typedef struct timeval t_timeval;
-
-// typedef struct s_mlx
-// {
-// 	void			*mlx_ptr;
-// 	void			*win_ptr;
-// 	int				width;
-// 	int				height;
-//     int             uart_fd;
-// }					t_mlx;
-
-// typedef struct s_img
-// {
-// 	void			*img_ptr;
-// 	char			*img_addr;
-// 	int				bpp;
-// 	int				line_len;
-// 	int				endian;
-// }					t_img;
 
 typedef struct cell
 {
@@ -81,32 +64,16 @@ typedef struct color
 
 typedef struct sensor_data_s
 {
-    pthread_mutex_t     *dist_lock;
-    pthread_mutex_t     *interp_lock;
+    SemaphoreHandle_t   dist_lock;
+    SemaphoreHandle_t   interp_lock;
     float               sens_1_last_value;
     float               sens_1_next_value;
     float               sens_1_interp;
     int                 dist_sensor_1;
     int                 dist_sensor_2; 
-    // t_mlx               *window;
-    int                 uart_fd;
 }   sensor_data_t;
 
-
-/******* MLX ********/
-// t_mlx	start_mlx(int width, int height);
-// t_img	*init_img(t_mlx *window);
-// int	    *get_pixel_from_img(t_img *img, int x, int y);
-// void	img_pix_put(t_img *img, int x, int y, int color);
-// void    draw_cell(t_img *img, int x, int y, int color);
-// void    draw_grid(t_img *img, int color);
-// void    push_img(t_img *img, t_mlx *window);
-
 int    start_radial(t_rmt *module);
-// void    linear_loop(t_mlx *window);
-// int     conway_loop(t_mlx *param_window);
-
-// int     wheel(__uint8_t pos);
 
 /*********** COLORS ********** */
 int	    create_trgb(int t, int r, int g, int b);
@@ -123,10 +90,17 @@ int	    get_b(int trgb);
 float	normalize_value(float value, float min, float max);
 
 /************* SENSOR ********* */
+void setup_echo_1_interrupt();
+void setup_echo_2_interrupt();
+void setup_sound_interrupt();
+// void  sound_isr_handler(void* arg);
+int32_t read_distance_1_interrupt(int sensor_trig);
+int32_t read_distance_2_interrupt(int sensor_trig);
 int32_t read_distance_ms(int sensor_read, int sensor_trig);
 void get_sensor_1_values(sensor_data_t *data, float *curr_distance);
 void get_sensor_2_values(sensor_data_t *data, float *curr_distance);
-void update_average_distance(sensor_data_t *data);
+void update_average_distance_sens1(sensor_data_t *data);
+void update_average_distance_sens2(sensor_data_t *data);
 
 /************* MATHS *************/
 float   square(float nb);

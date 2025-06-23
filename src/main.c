@@ -54,6 +54,18 @@ void setup_sensor(int sensor_read, int sensor_trig)
     gpio_config(&sensor_read_config);
 }
 
+void setup_sound_sensor()
+{
+    gpio_config_t sensor_trig_config = {
+        .intr_type = GPIO_INTR_DISABLE,                  // pas d'interruption pour l’instant
+        .pin_bit_mask = (1ULL << SOUND_SENSOR),          // sélection du GPIO
+        .mode = GPIO_MODE_INPUT,                         // 🔴 mode INPUT (important)
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,           // selon câblage
+        .pull_up_en = GPIO_PULLUP_DISABLE                // selon câblage
+    };
+    gpio_config(&sensor_trig_config);
+}
+
 void uart_init()
 {
     uart_config_t uart_config;
@@ -81,12 +93,22 @@ void app_main()
     // Connecter la bonne pin au module RMT
     REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG, RMT_SIG_OUT0_IDX);
     // Activer la pin en output
-    REG_WRITE(GPIO_ENABLE_REG, 1 << 19);
+    REG_WRITE(GPIO_ENABLE1_REG, 1 << 0);
 
     t_rmt module;
-    setup_rmt_module(19, &module);  
+    setup_rmt_module(32, &module);  
     uart_init();
     setup_sensor(SENSOR_READ_1, SENSOR_TRIG_1);
     setup_sensor(SENSOR_READ_2, SENSOR_TRIG_2);
+    setup_sound_sensor();
+    gpio_install_isr_service(0);
+    setup_echo_1_interrupt();
+    setup_echo_2_interrupt();
+    setup_sound_interrupt();
+    // while (1)
+    // {
+    //     if (gpio_get_level(SOUND_SENSOR) == 0)
+    //         printf("boom\n");
+    // }
     start_radial(&module);
 }
