@@ -105,10 +105,5 @@ void app_main()
     setup_echo_1_interrupt();
     setup_echo_2_interrupt();
     setup_sound_interrupt();
-    // while (1)
-    // {
-    //     if (gpio_get_level(SOUND_SENSOR) == 0)
-    //         printf("boom\n");
-    // }
     start_radial(&module);
 }

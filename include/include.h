@@ -23,7 +23,6 @@
 #include <math.h>
 #include "rmt_module.h"
 #include "driver/gpio.h"
-#include "conway.h"
 #include "esp_log.h"
 #include "driver/uart.h"
 #include "esp_timer.h"
@@ -93,7 +92,6 @@ float	normalize_value(float value, float min, float max);
 void setup_echo_1_interrupt();
 void setup_echo_2_interrupt();
 void setup_sound_interrupt();
-// void  sound_isr_handler(void* arg);
 int32_t read_distance_1_interrupt(int sensor_trig);
 int32_t read_distance_2_interrupt(int sensor_trig);
 int32_t read_distance_ms(int sensor_read, int sensor_trig);
