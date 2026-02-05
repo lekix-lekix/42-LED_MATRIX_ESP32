@@ -1,4 +1,7 @@
-# 42_LED_MATRIX
+<h1 align=center>42_LED_MATRIX</h1>
+<p align=center>
+  <img src="photos/1770282287803.jpg" alt="led-matrix-photo" style="width:50%; height:auto;">
+</p>
 
 An educational electronics project built after attending the **42 Embedded Pool**, showcased during the opening night of the new 42 Paris building, in partnership with **42’s Electronics Lab (Labelec)**.
 
